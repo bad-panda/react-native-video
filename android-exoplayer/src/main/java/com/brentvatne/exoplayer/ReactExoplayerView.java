@@ -124,6 +124,9 @@ class ReactExoplayerView extends FrameLayout implements
     private int bufferForPlaybackMs = DefaultLoadControl.DEFAULT_BUFFER_FOR_PLAYBACK_MS;
     private int bufferForPlaybackAfterRebufferMs = DefaultLoadControl.DEFAULT_BUFFER_FOR_PLAYBACK_AFTER_REBUFFER_MS;
 
+	private long lastDetachedAt = 0;
+	private Handler pendingInitializePlayerHandler;
+
     // Props from React
     private Uri srcUri;
     private String extension;
@@ -218,17 +221,34 @@ class ReactExoplayerView extends FrameLayout implements
 
     @Override
     protected void onAttachedToWindow() {
+    	Log.d(TAG, "onAttachedToWindow()");
+    	long msSinceLastDetached = System.currentTimeMillis() - this.lastDetachedAt;
         super.onAttachedToWindow();
+        if (msSinceLastDetached < 50) {
+        	Log.d(TAG, "onAttachedToWindow() - msSinceLastDetached too short, ignoring");
+        	// stupid issue with react-native-screens which immediately calls attached while CLOSING stack screen
+        	return;
+        }
         initializePlayer();
     }
 
     @Override
     protected void onDetachedFromWindow() {
+    	Log.d(TAG, "onDetachedFromWindow()");
         super.onDetachedFromWindow();
-        /* We want to be able to continue playing audio when switching tabs.
-         * Leave this here in case it causes issues.
+
+        lastDetachedAt = System.currentTimeMillis();
+
+		if (pendingInitializePlayerHandler != null) {
+			Log.d(TAG, "onDetachedFromWindow() - Found a pendingInitializePlayerHandler - clearing all callbacks");
+			pendingInitializePlayerHandler.removeCallbacksAndMessages(null);
+        	pendingInitializePlayerHandler = null;
+		}
+
+        /* We DONT want to be able to continue playing audio when switching tabs.
+         * Leave this here in case it causes issues. (it did, calling stopPlayback again)
          */
-        // stopPlayback();
+        stopPlayback();
     }
 
     // LifecycleEventListener implementation
@@ -375,10 +395,16 @@ class ReactExoplayerView extends FrameLayout implements
 
     private void initializePlayer() {
         ReactExoplayerView self = this;
+        Log.d(TAG, "initializePlayer()");
+        // saving reference to handler so we can cancel if view gets detached before init starts
+        // solves a race condition that leaves an active player running when its view has been totally destroyed
+        pendingInitializePlayerHandler = new Handler();
         // This ensures all props have been settled, to avoid async racing conditions.
-        new Handler().postDelayed(new Runnable() {
+        pendingInitializePlayerHandler.postDelayed(new Runnable() {
             @Override
             public void run() {
+            	Log.d(TAG, "initializePlayer() - run");
+            	pendingInitializePlayerHandler = null;
                 if (player == null) {
                     TrackSelection.Factory videoTrackSelectionFactory = new AdaptiveTrackSelection.Factory();
                     trackSelector = new DefaultTrackSelector(videoTrackSelectionFactory);
