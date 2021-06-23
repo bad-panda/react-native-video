@@ -1,6 +1,6 @@
 {
-    "name": "react-native-video",
-    "version": "5.1.1",
+    "name": "@gifyourgame/react-native-video",
+    "version": "5.1.1-alpha804",
     "description": "A <Video /> element for react-native",
     "main": "Video.js",
     "license": "MIT",
