@@ -26,6 +26,7 @@ import com.google.android.exoplayer2.text.TextRenderer;
 import com.google.android.exoplayer2.text.TextOutput;
 import com.google.android.exoplayer2.trackselection.TrackSelectionArray;
 import com.google.android.exoplayer2.ui.SubtitleView;
+import com.google.android.exoplayer2.video.VideoListener;
 
 import java.util.List;
 
@@ -140,8 +141,8 @@ public final class ExoPlayerView extends FrameLayout {
             return;
         }
         if (this.player != null) {
-            this.player.setTextOutput(null);
-            this.player.setVideoListener(null);
+            this.player.removeTextOutput(componentListener);
+            this.player.removeVideoListener(componentListener);
             this.player.removeListener(componentListener);
             this.player.setVideoSurface(null);
         }
@@ -149,9 +150,9 @@ public final class ExoPlayerView extends FrameLayout {
         shutterView.setVisibility(VISIBLE);
         if (player != null) {
             setVideoView();
-            player.setVideoListener(componentListener);
+            player.addVideoListener(componentListener);
             player.addListener(componentListener);
-            player.setTextOutput(componentListener);
+            player.addTextOutput(componentListener);
         }
     }
 
@@ -230,7 +231,7 @@ public final class ExoPlayerView extends FrameLayout {
         layout.invalidateAspectRatio();
     }
 
-    private final class ComponentListener implements SimpleExoPlayer.VideoListener,
+    private final class ComponentListener implements VideoListener,
             TextOutput, ExoPlayer.EventListener {
 
         // TextRenderer.Output implementation
